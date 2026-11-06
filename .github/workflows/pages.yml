@@ -1,0 +1,92 @@
+name: Bootstrap source and deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      VITE_FRONTEND_DEMO: true
+      VITE_BASE_PATH: /mirsad-car-wash/
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Extract complete source on first run
+        if: hashFiles('bootstrap/source-000.b64') != ''
+        run: |
+          python3 - <<'PY'
+          import base64
+          import io
+          import zipfile
+          from pathlib import Path
+
+          chunks = sorted(Path('bootstrap').glob('source-*.b64'))
+          encoded = ''.join(path.read_text().strip() for path in chunks)
+          archive = io.BytesIO(base64.b64decode(encoded))
+          with zipfile.ZipFile(archive) as source:
+              source.extractall('.')
+          for path in chunks:
+              path.unlink()
+          Path('bootstrap').rmdir()
+          PY
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Verify source
+        run: npm run check && npm run test
+
+      - name: Commit extracted source and lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish complete Mirsad source [skip ci]"
+            git push
+          fi
+
+      - name: Build standalone demo
+        run: npm run build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload static site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
