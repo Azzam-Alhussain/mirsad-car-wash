@@ -1,0 +1,38 @@
+service:
+  # MIRSAD_API_URL and VISION_API_KEY environment variables override these values.
+  api_url: ${MIRSAD_API_URL}
+  api_key: ${VISION_API_KEY}
+  model: yolo11n.pt
+  confidence: 0.45
+  # COCO: car=2, bus=5, truck=7. Add motorcycle=3 only if your wash accepts it.
+  vehicle_class_ids: [2, 5, 7]
+  frame_skip: 2
+  entry_frames: 3
+  exit_frames: 8
+  request_timeout_seconds: 10
+  reconnect_seconds: 5
+  captures_dir: /data/captures
+  size:
+    # Starting values only. Calibrate against real vehicles at each camera position.
+    medium_area: 0.035
+    large_area: 0.09
+  storage:
+    # Without S3, events are still delivered but imageUrl is omitted unless
+    # public_base_url points to a separately configured static capture server.
+    public_base_url: ""
+    s3_bucket: ""
+    s3_prefix: mirsad
+    s3_endpoint_url: ""
+    s3_region: ""
+    # AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are read by boto3 when used.
+
+cameras:
+  - id: CAM-01
+    rtsp_url: ${CAM01_RTSP_URL}
+    zones:
+      - bay: 1
+        polygon: [[0.03, 0.25], [0.31, 0.25], [0.31, 0.95], [0.03, 0.95]]
+      - bay: 2
+        polygon: [[0.35, 0.25], [0.63, 0.25], [0.63, 0.95], [0.35, 0.95]]
+      - bay: 3
+        polygon: [[0.67, 0.25], [0.95, 0.25], [0.95, 0.95], [0.67, 0.95]]
